@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PolicyClear — AI Insurance Policy Explainer</title>
+<style>
+  :root {
+    --navy: #0D1F3C;
+    --teal: #028090;
+    --seafoam: #00A896;
+    --mint: #02C39A;
+    --bg: #F4F8FB;
+    --card: #FFFFFF;
+    --border: #E2E8F0;
+    --text: #1A202C;
+    --muted: #4A5568;
+    --danger: #C53030;
+    --danger-bg: #FFF5F5;
+    --warn: #B7791F;
+    --warn-bg: #FFFBEB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  @media (max-width: 600px) {
+    .page { padding: 24px 16px 60px; }
+    header { margin-bottom: 24px; }
+    header h1 { font-size: 24px; }
+    header p { font-size: 14px; }
+    header .badge { font-size: 12px; padding: 5px 12px; }
+    .upload-zone { padding: 28px 16px; }
+    .upload-zone svg { width: 36px; height: 36px; margin-bottom: 8px; }
+    .upload-zone p.main { font-size: 14px; }
+    .upload-zone p.sub { font-size: 12px; }
+    .analyze-btn { padding: 14px; font-size: 15px; }
+    .section-card { padding: 16px 16px; margin-bottom: 12px; }
+    .section-card .head .icon { width: 28px; height: 28px; }
+    .section-card .head .icon svg { width: 16px; height: 16px; }
+    .section-card .head h3 { font-size: 14px; }
+    .section-card li { font-size: 13px; padding: 5px 0 5px 18px; }
+    .section-card p.summary { font-size: 14px; }
+    .file-chip { padding: 10px 12px; }
+    .file-chip .name { font-size: 13px; }
+    textarea#pasteArea { font-size: 13px; padding: 12px; }
+    .disclaimer { font-size: 11px; }
+  }
+
+  @media (max-width: 380px) {
+    header h1 { font-size: 21px; }
+    .section-card { padding: 14px 12px; }
+  }
+
+  header { text-align: center; margin-bottom: 36px; }
+  header .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--navy); color: #fff; font-size: 13px;
+    padding: 6px 14px; border-radius: 20px; margin-bottom: 16px;
+  }
+  header h1 { font-size: 32px; color: var(--navy); font-weight: 800; margin-bottom: 8px; }
+  header p { color: var(--muted); font-size: 15px; }
+
+  .upload-zone {
+    background: var(--card); border: 2px dashed var(--border);
+    border-radius: 16px; padding: 40px 24px; text-align: center;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--teal); background: #F0FAFB;
+  }
+  .upload-zone svg { width: 48px; height: 48px; color: var(--teal); margin-bottom: 12px; }
+  .upload-zone p.main { font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .upload-zone p.sub { font-size: 13px; color: var(--muted); }
+  #fileInput { display: none; }
+
+  .file-chip {
+    display: none; align-items: center; gap: 10px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; margin-top: 16px;
+  }
+  .file-chip.active { display: flex; }
+  .file-chip svg { width: 20px; height: 20px; color: var(--teal); flex-shrink: 0; }
+  .file-chip .name { font-size: 14px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip button {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 10px; min-width: 36px; min-height: 36px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  textarea#pasteArea {
+    width: 100%; min-height: 120px; margin-top: 16px;
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: 14px; font-family: inherit;
+    resize: vertical; display: none;
+  }
+  textarea#pasteArea.active { display: block; }
+
+  .toggle-paste {
+    text-align: center; margin-top: 14px;
+  }
+  .toggle-paste button {
+    background: none; border: none; color: var(--teal);
+    font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline;
+  }
+
+  .analyze-btn {
+    width: 100%; margin-top: 20px; background: var(--teal); color: #fff;
+    border: none; border-radius: 12px; padding: 16px; font-size: 16px;
+    font-weight: 700; cursor: pointer; transition: background 0.2s;
+  }
+  .analyze-btn:hover:not(:disabled) { background: var(--navy); }
+  .analyze-btn:disabled { background: #A0AEC0; cursor: not-allowed; }
+
+  .loading {
+    display: none; text-align: center; padding: 40px 0; color: var(--muted);
+  }
+  .loading.active { display: block; }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--teal); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    display: none; background: var(--danger-bg); border: 1px solid #FEB2B2;
+    color: var(--danger); border-radius: 10px; padding: 14px 16px;
+    margin-top: 16px; font-size: 14px;
+  }
+  .error-box.active { display: block; }
+
+  .results { display: none; margin-top: 32px; }
+  .results.active { display: block; }
+
+  .section-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px; margin-bottom: 16px;
+  }
+  .section-card .head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .section-card .head .icon {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .section-card .head .icon svg { width: 18px; height: 18px; }
+  .section-card .head h3 { font-size: 16px; font-weight: 700; color: var(--navy); }
+  .section-card ul { list-style: none; }
+  .section-card li {
+    font-size: 14px; line-height: 1.6; color: var(--text);
+    padding: 6px 0 6px 22px; position: relative;
+  }
+  .section-card li::before {
+    content: "•"; position: absolute; left: 4px; color: var(--teal); font-weight: bold;
+  }
+  .section-card p.summary { font-size: 15px; line-height: 1.7; color: var(--text); }
+
+  .icon-covered { background: #E1F5EE; }
+  .icon-covered svg { color: #0F6E56; }
+  .icon-excluded { background: var(--danger-bg); }
+  .icon-excluded svg { color: var(--danger); }
+  .icon-wait { background: var(--warn-bg); }
+  .icon-wait svg { color: var(--warn); }
+  .icon-limit { background: #E6F1FB; }
+  .icon-limit svg { color: #185FA5; }
+  .icon-reject { background: #FAEEDA; }
+  .icon-reject svg { color: #854F0B; }
+  .icon-flag { background: #FBEAF0; }
+  .icon-flag svg { color: #993556; }
+  .icon-summary { background: var(--navy); }
+  .icon-summary svg { color: #fff; }
+
+  .disclaimer {
+    margin-top: 24px; font-size: 12px; color: var(--muted);
+    text-align: center; line-height: 1.6;
+  }
+
+  .reset-btn {
+    display: block; margin: 24px auto 0; background: none;
+    border: 1px solid var(--border); color: var(--muted);
+    border-radius: 10px; padding: 10px 20px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+  .reset-btn:hover { background: var(--bg); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      PolicyClear
+    </div>
+    <h1>Understand any insurance policy in seconds</h1>
+    <p>Upload a policy document or paste the text — get a plain-English breakdown of what's covered, what's not, and what to watch out for.</p>
+  </header>
+
+  <div id="apiKeySection" style="background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px;">
+    <p style="font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 6px;">Enter your Anthropic API key</p>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;">This runs entirely in your browser. Your key is never sent anywhere except directly to Anthropic, and is not saved once you close this page. Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color: var(--teal);">console.anthropic.com</a>.</p>
+    <div style="display:flex; gap:8px;">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="flex:1; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family: monospace;">
+      <button onclick="saveApiKey()" style="background:var(--teal); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">Save</button>
+    </div>
+    <p id="apiKeyStatus" style="font-size:12px; margin-top:8px; display:none;"></p>
+  </div>
+
+  <div id="uploadZone" class="upload-zone">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <p class="main">Click to upload a policy PDF or text file</p>
+    <p class="sub">or drag and drop here</p>
+    <input type="file" id="fileInput" accept=".pdf,.txt">
+  </div>
+
+  <div id="fileChip" class="file-chip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <span class="name" id="fileName"></span>
+    <button onclick="clearFile()">&times;</button>
+  </div>
+
+  <div class="toggle-paste">
+    <button onclick="togglePaste()">or paste policy text instead</button>
+  </div>
+  <textarea id="pasteArea" placeholder="Paste the policy text here..."></textarea>
+
+  <button class="analyze-btn" id="analyzeBtn" onclick="analyzePolicy()">Analyze Policy</button>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Reading through the policy and breaking it down...</p>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <button class="reset-btn" id="resetBtn" style="display:none" onclick="resetAll()">Analyze another policy</button>
+
+  <p class="disclaimer">This tool gives a plain-English summary to aid understanding. It is not a substitute for reading the full policy document or consulting your insurer/broker before making decisions. AI-generated summaries may contain errors.</p>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+let extractedText = "";
+let currentFileName = "";
+let userApiKey = "";
+
+function saveApiKey() {
+  const input = document.getElementById('apiKeyInput');
+  const status = document.getElementById('apiKeyStatus');
+  const key = input.value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    status.textContent = "That doesn't look like a valid Anthropic API key (should start with sk-ant-).";
+    status.style.color = "#C53030";
+    status.style.display = "block";
+    return;
+  }
+  userApiKey = key;
+  status.textContent = "Key saved for this session. You can now analyze policies.";
+  status.style.color = "#0F6E56";
+  status.style.display = "block";
+  input.value = "";
+  input.placeholder = "Key saved (hidden)";
+  input.disabled = true;
+}
+
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const fileChip = document.getElementById('fileChip');
+const fileName = document.getElementById('fileName');
+const pasteArea = document.getElementById('pasteArea');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const errorBox = document.getElementById('errorBox');
+const loading = document.getElementById('loading');
+const results = document.getElementById('results');
+const resetBtn = document.getElementById('resetBtn');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  hideError();
+  currentFileName = file.name;
+  fileName.textContent = file.name;
+  fileChip.classList.add('active');
+  pasteArea.value = "";
+  pasteArea.classList.remove('active');
+
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith('.pdf')) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(" ") + "\n";
+      }
+      extractedText = text;
+    } catch (err) {
+      showError("Couldn't read that PDF. Try pasting the text instead.");
+      extractedText = "";
+    }
+  } else {
+    extractedText = await file.text();
+  }
+}
+
+function clearFile() {
+  fileChip.classList.remove('active');
+  fileInput.value = "";
+  extractedText = "";
+  currentFileName = "";
+}
+
+function togglePaste() {
+  pasteArea.classList.toggle('active');
+  if (pasteArea.classList.contains('active')) {
+    clearFile();
+  }
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('active');
+}
+function hideError() {
+  errorBox.classList.remove('active');
+}
+
+function resetAll() {
+  clearFile();
+  pasteArea.value = "";
+  pasteArea.classList.remove('active');
+  results.classList.remove('active');
+  results.innerHTML = "";
+  resetBtn.style.display = "none";
+  hideError();
+  uploadZone.style.display = "block";
+  document.querySelector('.toggle-paste').style.display = "block";
+  analyzeBtn.style.display = "block";
+}
+
+async function analyzePolicy() {
+  hideError();
+
+  if (!userApiKey) {
+    showError("Please enter your Anthropic API key above first.");
+    return;
+  }
+
+  const pastedText = pasteArea.value.trim();
+  const textToAnalyze = pastedText || extractedText;
+
+  if (!textToAnalyze || textToAnalyze.length < 50) {
+    showError("Please upload a policy document or paste enough policy text to analyze (at least a few sentences).");
+    return;
+  }
+
+  analyzeBtn.disabled = true;
+  loading.classList.add('active');
+  results.classList.remove('active');
+  results.innerHTML = "";
+
+  const truncated = textToAnalyze.slice(0, 15000);
+
+  const systemPrompt = `You are an expert insurance policy analyst. You will be given the text of an insurance policy document. Analyze it and respond ONLY with a valid JSON object (no markdown, no backticks, no preamble) with exactly this structure:
+
+{
+  "policyType": "string - e.g. Health Insurance, Motor Insurance, Term Life Insurance",
+  "insurerName": "string - the name of the insurance company that issued this policy, as found in the document. If not found, return null",
+  "summary": "2-3 sentence plain English summary of what this policy is and who it's for",
+  "covered": ["array of strings - plain English bullet points of what is covered"],
+  "excluded": ["array of strings - plain English bullet points of what is NOT covered"],
+  "waitingPeriods": ["array of strings - any waiting periods mentioned, in plain English. If none found, return an empty array"],
+  "claimLimits": ["array of strings - sum insured, sub-limits, co-pay, deductibles etc in plain English. If none found, return an empty array"],
+  "rejectionReasons": ["array of strings - predicted common reasons claims might get rejected under this policy, based on the exclusions and terms found"],
+  "redFlags": ["array of strings - anything unusual, restrictive, or worth double-checking with the insurer. If none found, return an empty array"]
+}
+
+Be specific and reference actual terms from the document. Use simple, clear language a non-expert would understand. If the document text seems incomplete or unclear in places, do your best with what's given. Keep each bullet point concise — one sentence each. Limit each array to at most 6 items, prioritizing the most important points. This keeps the response focused and complete.
+
+For insurerName: extract the exact name of the insurance company that issued the policy (the underwriter, not the broker). Look for it in headers, footers, or the policy schedule. Return it in a clean, common form (e.g. "Star Health", "HDFC ERGO", "United India Insurance") rather than a long legal name. If genuinely not findable, return null.`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": userApiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [
+          { role: "user", content: `Here is the policy document text:\n\n${truncated}` }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      let errDetail = "";
+      try {
+        const errJson = await response.json();
+        errDetail = errJson.error?.message || JSON.stringify(errJson);
+      } catch (e) {
+        errDetail = await response.text();
+      }
+      throw new Error(`API request failed (status ${response.status}): ${errDetail}`);
+    }
+
+    const data = await response.json();
+    const textBlock = data.content.find(b => b.type === "text");
+    if (!textBlock) throw new Error("No text block in API response: " + JSON.stringify(data));
+
+    let cleaned = textBlock.text.replace(/```json|```/g, "").trim();
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseErr) {
+      const looksTruncated = data.stop_reason === "max_tokens" || !cleaned.trim().endsWith("}");
+      if (looksTruncated) {
+        throw new Error("The response was cut off before finishing. Try again — this should be rare now, but if it keeps happening, try a shorter document.");
+      }
+      throw new Error("Failed to parse AI response as JSON: " + cleaned.slice(0, 300));
+    }
+
+    renderResults(parsed);
+  } catch (err) {
+    console.error("PolicyClear error:", err);
+    showError("Error: " + err.message);
+  } finally {
+    analyzeBtn.disabled = false;
+    loading.classList.remove('active');
+  }
+}
+
+function buildSection(iconClass, iconSvg, title, items, isPara) {
+  if (!isPara && (!items || items.length === 0)) return "";
+  let inner;
+  if (isPara) {
+    inner = `<p class="summary">${escapeHtml(items)}</p>`;
+  } else {
+    inner = `<ul>${items.map(i => `<li>${escapeHtml(i)}</li>`).join("")}</ul>`;
+  }
+  return `
+    <div class="section-card">
+      <div class="head">
+        <div class="icon ${iconClass}">${iconSvg}</div>
+        <h3>${title}</h3>
+      </div>
+      ${inner}
+    </div>`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+const ICONS = {
+  summary: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
+  covered: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  excluded: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  wait: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  limit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+  reject: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+  hospital: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 9V6a2 2 0 00-2-2H7a2 2 0 00-2 2v3"/><rect x="3" y="9" width="18" height="11" rx="2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>'
+};
+
+// Known insurer network hospital / network locator pages.
+// IMPORTANT: Only entries marked VERIFIED have been manually checked to actually load (June 2026).
+// Unverified entries are intentionally NOT included as direct links yet — they fall back
+// to the "search yourself" message instead, to avoid sending people to a dead or wrong page.
+const INSURER_HOSPITAL_LINKS = {
+  // VERIFIED June 2026
+  "united india insurance": "https://uiic.co.in/web/tpa-ppn-network-hospitals",
+  "united india": "https://uiic.co.in/web/tpa-ppn-network-hospitals",
+  "hdfc ergo": "https://www.hdfcergo.com/locators/cashless-hospitals-networks",
+  "star health": "https://www.starhealth.in/lookup/hospital/"
+
+  // NOT YET VERIFIED — do not add insurers here without confirming the URL actually
+  // loads via a real fetch first. A wrong link here is worse than no link at all.
+};
+
+function findHospitalLink(insurerName) {
+  if (!insurerName) return null;
+  const lower = insurerName.toLowerCase();
+  for (const key in INSURER_HOSPITAL_LINKS) {
+    if (lower.includes(key)) return INSURER_HOSPITAL_LINKS[key];
+  }
+  return null;
+}
+
+function renderResults(data) {
+  let html = "";
+
+  html += `
+    <div class="section-card" style="background: var(--navy); border: none;">
+      <div class="head">
+        <div class="icon icon-summary">${ICONS.summary}</div>
+        <h3 style="color: #fff;">${escapeHtml(data.policyType || "Policy Summary")}</h3>
+      </div>
+      <p class="summary" style="color: #D0E8F0;">${escapeHtml(data.summary || "")}</p>
+    </div>`;
+
+  html += buildSection("icon-covered", ICONS.covered, "What's covered", data.covered, false);
+
+  const hospitalLink = findHospitalLink(data.insurerName);
+  if (hospitalLink) {
+    html += `
+      <div class="section-card" style="border-color: var(--seafoam);">
+        <div class="head">
+          <div class="icon" style="background:#E1F5EE;"><span style="color:#0F6E56;">${ICONS.hospital}</span></div>
+          <h3>Find network hospitals</h3>
+        </div>
+        <p class="summary">For cashless treatment, check if your hospital is in ${escapeHtml(data.insurerName)}'s network before admission. This is your first stop in an emergency.</p>
+        <a href="${hospitalLink}" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:12px; background:var(--teal); color:#fff; padding:13px 16px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; min-height:44px;">
+          Check network hospital list &rarr;
+        </a>
+      </div>`;
+  } else if (data.insurerName) {
+    html += `
+      <div class="section-card" style="border-color: var(--warn);">
+        <div class="head">
+          <div class="icon" style="background:${'#FFFBEB'};"><span style="color:#B7791F;">${ICONS.hospital}</span></div>
+          <h3>Find network hospitals</h3>
+        </div>
+        <p class="summary">For cashless treatment, check if your hospital is in ${escapeHtml(data.insurerName)}'s network before admission &mdash; this is your first stop in an emergency. We don't yet have a verified direct link for this insurer, so search "${escapeHtml(data.insurerName)} network hospital list" or check their official app/customer care to be sure you're looking at an up-to-date list.</p>
+      </div>`;
+  }
+
+  html += buildSection("icon-excluded", ICONS.excluded, "What's not covered (exclusions)", data.excluded, false);
+  html += buildSection("icon-wait", ICONS.wait, "Waiting periods", data.waitingPeriods, false);
+  html += buildSection("icon-limit", ICONS.limit, "Claim limits", data.claimLimits, false);
+  html += buildSection("icon-reject", ICONS.reject, "Common reasons claims get rejected", data.rejectionReasons, false);
+  html += buildSection("icon-flag", ICONS.flag, "Red flags to double-check", data.redFlags, false);
+
+  results.innerHTML = html;
+  results.classList.add('active');
+  resetBtn.style.display = "block";
+  uploadZone.style.display = "none";
+  document.querySelector('.toggle-paste').style.display = "none";
+  analyzeBtn.style.display = "none";
+  fileChip.classList.remove('active');
+  pasteArea.classList.remove('active');
+
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
